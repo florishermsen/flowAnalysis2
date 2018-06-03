@@ -11,16 +11,19 @@
 
 // Define Variables
 
+//Define Centrality class
+Int_t CClass = 0;
+
 //Define V1
-Double_t V1 = 0.05;
+Double_t V1 = 0.0109;
 
 //Set Rapidity Limits and Bins
-Double_t etaRange = 0.9;
+Double_t etaRange = 0.8;
 Int_t etaBins = 6;
 
 //Set sample size steps and multiplier
 Int_t SSSteps = 10;
-Int_t SSMultiplier = 100;
+Int_t SSMultiplier = 200000;
 
 
 #include <ctime>
@@ -39,7 +42,7 @@ Int_t SSMultiplier = 100;
 using std::endl;
 using std::cout;
 
-Int_t cycleReport = 100;
+Int_t cycleReport = 2000;
 
 void runMTC() {
 	cout<<endl;
@@ -48,11 +51,20 @@ void runMTC() {
 	gSystem->Sleep(500);
 
 	// Configure rapidity profile
-	TF1 *etaDistribution = new TF1("fEtaDistribution","0.9+.1*x^2",-etaRange,etaRange);
+
+	TF1 *etaDistribution = new TF1("fEtaDistribution","1+[0]*x^2",-etaRange,etaRange); // % dip around 0
+	etaDistribution->SetNpx(50);
+
+   etaDistribution->SetParameter(0,0.056); //10-30
+   if(CClass==1) {
+     	etaDistribution->SetParameter(0,0.061); //30-50
+   } else if(CClass==2) {
+     	etaDistribution->SetParameter(0,0.074); //60-80
+   }
 
 	// Configure fourrier transform of the azimuthal angle distribution
    TF1 *phiDistribution = new TF1("fPhiDistribution","1+2.*[0]*TMath::Cos(x)", 0, TMath::TwoPi());
-   phiDistribution->SetNpx(1000);
+   phiDistribution->SetNpx(50);
    phiDistribution->SetParName(0,"Directed Flow (v1)"); 
    phiDistribution->SetParameter(0,V1);
 
@@ -105,10 +117,16 @@ void runMTC() {
 	      pTrack->SetPhi(phiDistribution->GetRandom());
 
 	      // Fill the histrogram with v1 including RP Error
+	      Double_t RPerror = 0.2;
+
+			if(CClass==2) {
+     			RPerror = 0.3; //60-80
+   		}
+
 	      if(pTrack->Charge() == 1){
-	      	histFlowPos->Fill(pTrack->Eta(), TMath::Cos(pTrack->Phi()+gRandom->Gaus(0, TMath::Pi()/5)));
+	      	histFlowPos->Fill(pTrack->Eta(), TMath::Cos(pTrack->Phi()+gRandom->Gaus(0, RPerror*TMath::Pi())));
 	      } else {
-	      	histFlowNeg->Fill(pTrack->Eta(), TMath::Cos(pTrack->Phi()+gRandom->Gaus(0, TMath::Pi()/5)));
+	      	histFlowNeg->Fill(pTrack->Eta(), TMath::Cos(pTrack->Phi()+gRandom->Gaus(0, RPerror*TMath::Pi())));
 	      }
 
 	      // Delete the track to prevent memory leak
@@ -163,15 +181,30 @@ void runMTC() {
 	   delete histFlowPos;
 	   delete histFlowNeg;
 	}
-   
 
    TCanvas *c1 = new TCanvas("c1","v1 vs N",200,10,700,500);
    c1->SetGrid();
    plotV1vsN->Draw();
 
+   cout<<endl;
+   cout<<endl;
+   cout<<endl;
+	cout<<"v1 Evolution data:"<<endl;
+	cout<<endl;
+   plotV1vsN->Print("all");
+
    TCanvas *c2 = new TCanvas("c2","SoD vs N",200,10,700,500);
    c2->SetGrid();
    plotSoDvsN->Draw();
+
+
+   cout<<endl;
+   cout<<endl;
+   cout<<endl;
+	cout<<"SoD Evolution data:"<<endl;
+	cout<<endl;
+   plotSoDvsN->Print("all");
+   cout<<endl;
 
    delete v1FitPos;
    delete v1FitNeg;
